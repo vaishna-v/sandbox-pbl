@@ -1,5 +1,0 @@
-/home/limey/My Stuff/PBL/final-resource-controlled-sandbox/build/CMakeFiles/sandbox_alloc.dir
-/home/limey/My Stuff/PBL/final-resource-controlled-sandbox/build/CMakeFiles/interactive_test.dir
-/home/limey/My Stuff/PBL/final-resource-controlled-sandbox/build/CMakeFiles/sandbox_exec.dir
-/home/limey/My Stuff/PBL/final-resource-controlled-sandbox/build/CMakeFiles/edit_cache.dir
-/home/limey/My Stuff/PBL/final-resource-controlled-sandbox/build/CMakeFiles/rebuild_cache.dir
