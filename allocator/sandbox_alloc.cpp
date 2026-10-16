@@ -5,11 +5,14 @@
 #include <cstring>
 #include <atomic>
 #include <cstdio>
+#include "../../dbms/DatabaseAdapter.hpp"
 
 std::atomic<size_t> total_allocated{0};
 size_t mem_limit = 0;
 bool limit_initialized = false;
 char log_file_name[256] = "allocations.txt";
+
+DatabaseAdapter* db_adapter = nullptr;
 
 __thread bool in_alloc = false; 
 
@@ -32,6 +35,9 @@ void init_sandbox() {
         const char* env_name = getenv("SANDBOX_NAME");
         if (env_name) {
             snprintf(log_file_name, sizeof(log_file_name), "%s_log.txt", env_name);
+            
+            // Connect to PostgreSQL (false ensures we DO NOT drop tables here, main.cpp already did that)
+            db_adapter = new DatabaseAdapter(env_name, false);
         }
         
         int fd = open(log_file_name, O_WRONLY | O_CREAT | O_APPEND, 0666);
@@ -46,6 +52,7 @@ void init_sandbox() {
 }
 
 void log_action(const char* action, size_t requested, bool allowed) {
+    // 1. Log to flat text file
     int fd = open(log_file_name, O_WRONLY | O_CREAT | O_APPEND, 0666);
     if (fd >= 0) {
         char buffer[256];
@@ -53,6 +60,11 @@ void log_action(const char* action, size_t requested, bool allowed) {
                            getpid(), action, requested, allowed ? "GRANTED" : "DENIED", total_allocated.load(), mem_limit);
         write(fd, buffer, len);
         close(fd);
+    }
+    
+    // 2. Stream to PostgreSQL memory_events schema
+    if (db_adapter) {
+        db_adapter->LogMemoryEvent(getpid(), action, requested, allowed ? "GRANTED" : "DENIED", total_allocated.load());
     }
 }
 
@@ -81,6 +93,8 @@ void* raw_alloc(size_t size) {
 
 extern "C" void* malloc(size_t size) {
     if (size == 0) return nullptr;
+    
+    // If libpqxx triggers a memory allocation while sending a query, serve it raw physical RAM to prevent a crash loop
     if (in_alloc) return raw_alloc(size);
     in_alloc = true;
     
@@ -119,9 +133,15 @@ extern "C" void free(void* ptr) {
     
     // Only process blocks that we mathematically prove we created
     if (header->magic == SANDBOX_MAGIC) {
-        if (!in_alloc && limit_initialized) {
+        bool was_in_alloc = in_alloc;
+        
+        // Only deduct and log FREE events if we aren't currently inside an internal database/logging routine
+        if (!was_in_alloc && limit_initialized) {
+            in_alloc = true; // Lock out the database from triggering a recursive loop here
             total_allocated -= header->requested_size; 
             update_usage(); 
+            log_action("FREE", header->requested_size, true);
+            in_alloc = false;
         }
         munmap(header, header->mapped_size);
     }

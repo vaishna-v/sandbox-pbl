@@ -1,4 +1,5 @@
 #include "../include/Sandbox.h"
+#include "../../dbms/DatabaseAdapter.hpp" // Adjust path depending on where you placed the common folder
 #include <ncurses.h>
 #include <iostream>
 #include <string>
@@ -36,8 +37,11 @@ int main() {
     try {
         memLimitBytes = std::stoull(memInput);
     } catch (...) {
-        memLimitBytes = 10485760;
+        memLimitBytes = 10485760; // 10MB default
     }
+
+    // Instantiating the adapter here automatically initializes the database and creates fresh schemas using the user's input
+    DatabaseAdapter db(sandboxName);
 
     Sandbox sandbox(sandboxName);
 
@@ -48,7 +52,7 @@ int main() {
     timeout(1000);
 
     bool running = true;
-    std::string lastMessage = "Sandbox initialized. Logs writing to " + sandboxName + "_log.txt";
+    std::string lastMessage = "Sandbox initialized. Logs writing to " + sandboxName + "_log.txt and database.";
 
     while (running) {
         erase();
@@ -115,6 +119,9 @@ int main() {
                 pid_t pid = sandbox.Launch("/usr/bin/xterm", terminalArgs, memLimitBytes);
                 if (pid > 0) {
                     lastMessage = "Launched " + programPath + " (PID: " + std::to_string(pid) + ").";
+                    
+                    // Log the process start to the freshly created database
+                    db.LogProcessStart(pid, getpid(), programPath);
                 } else {
                     lastMessage = "Failed to launch " + programPath;
                 }

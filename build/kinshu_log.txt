@@ -1,0 +1,14 @@
+--- Sandbox [kinshu] Allocator Attached (Limit: 90000 bytes) ---
+[PID: 43409] ALLOC - Requested: 73728 bytes | Status: GRANTED | Total Payload: 73728/90000
+[PID: 43409] ALLOC - Requested: 1024 bytes | Status: GRANTED | Total Payload: 74752/90000
+[PID: 43409] ALLOC - Requested: 1024 bytes | Status: GRANTED | Total Payload: 75776/90000
+[PID: 43409] ALLOC - Requested: 23 bytes | Status: GRANTED | Total Payload: 75799/90000
+[PID: 43409] ALLOC - Requested: 8 bytes | Status: GRANTED | Total Payload: 75807/90000
+[PID: 43409] ALLOC - Requested: 23 bytes | Status: GRANTED | Total Payload: 75830/90000
+[PID: 43409] ALLOC - Requested: 16 bytes | Status: GRANTED | Total Payload: 75846/90000
+[PID: 43409] FREE - Requested: 8 bytes | Status: GRANTED | Total Payload: 75838/90000
+[PID: 43409] ALLOC - Requested: 92 bytes | Status: GRANTED | Total Payload: 75930/90000
+[PID: 43409] ALLOC - Requested: 32 bytes | Status: GRANTED | Total Payload: 75962/90000
+[PID: 43409] FREE - Requested: 16 bytes | Status: GRANTED | Total Payload: 75946/90000
+[PID: 43409] ALLOC - Requested: 1929 bytes | Status: GRANTED | Total Payload: 77875/90000
+[PID: 43409] ALLOC - Requested: 329392 bytes | Status: DENIED | Total Payload: 77875/90000
