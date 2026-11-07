@@ -6,6 +6,8 @@
 #include <iostream>
 #include <utility>
 #include <sstream>
+#include <sys/resource.h> 
+#include <algorithm>
 
 Sandbox::Sandbox(std::string name) : sandboxName(std::move(name)), childPid(-1) {
     cgroupPath = "/sys/fs/cgroup/" + sandboxName;
@@ -54,6 +56,19 @@ void Sandbox::Cleanup() {
     if (std::filesystem::exists(cgroupPath, ec)) std::filesystem::remove(cgroupPath, ec);
 }
 
+bool Sandbox::SetProcessPriority(pid_t pid, const std::string& level) {
+    std::string lowerLevel = level;
+    std::transform(lowerLevel.begin(), lowerLevel.end(), lowerLevel.begin(), ::tolower);
+    
+    int nice_value = 0;
+    if (lowerLevel == "high") nice_value = -10;
+    else if (lowerLevel == "low") nice_value = 10;
+    else if (lowerLevel == "normal") nice_value = 0;
+    else return false;
+
+    return (setpriority(PRIO_PROCESS, pid, nice_value) == 0);
+}
+
 std::vector<SandboxProcess> Sandbox::GetRunningProcesses() const {
     std::vector<SandboxProcess> procs;
     std::ifstream cgroupFile(cgroupPath + "/cgroup.procs");
@@ -79,26 +94,31 @@ std::vector<SandboxProcess> Sandbox::GetRunningProcesses() const {
                     continue;
                 }
                 
-                long exact_heap_mem = 0;
+                std::istringstream iss(line.substr(endName + 1));
+                char state;
+                int os_ppid;
+                std::string dummy;
+                int os_priority, os_nice;
+                long rss;
+                
+                iss >> state; // Field 3
+                if (state == 'Z') continue; 
+                
+                iss >> os_ppid; // Field 4 is Parent PID
+
+                for(int i = 0; i < 13; ++i) iss >> dummy; // Skip fields 5 to 17
+                
+                iss >> os_priority >> os_nice; // Fields 18 and 19
+                
+                for(int i = 0; i < 4; ++i) iss >> dummy; // Skip fields 20 to 23
+                iss >> rss; // Field 24
+                
+                long exact_heap_mem = rss * sysconf(_SC_PAGESIZE);
                 std::ifstream usageFile("/tmp/sandbox_mem_" + pidStr + ".txt");
+                if (usageFile.is_open()) usageFile >> exact_heap_mem;
                 
-                if (usageFile.is_open()) {
-                    // Read exact usage tracked by sandbox_alloc.so
-                    usageFile >> exact_heap_mem;
-                } else {
-                    // Fallback to OS RSS if file doesn't exist yet
-                    std::istringstream iss(line.substr(endName + 1));
-                    char state;
-                    long rss;
-                    std::string dummy;
-                    
-                    iss >> state;
-                    for(int i = 0; i < 20; ++i) iss >> dummy;
-                    iss >> rss;
-                    exact_heap_mem = rss * sysconf(_SC_PAGESIZE);
-                }
-                
-                procs.push_back({pid, name, exact_heap_mem, 1}); 
+                // Properly pushes all 5 required fields: pid, ppid, name, memory, priority
+                procs.push_back({pid, os_ppid, name, exact_heap_mem, os_nice}); 
             }
         }
     }

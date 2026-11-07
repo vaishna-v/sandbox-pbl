@@ -13,5 +13,6 @@ private:
 public:
     SandboxController() = default;
 
-    bool ExecuteAndMonitor(const std::string& programPath, const std::vector<std::string>& args, size_t memLimitBytes, int cpuQuota, int priority);
+    // Fixed signature: Removed cpuQuota and priority to match Sandbox::Launch
+    bool ExecuteAndMonitor(const std::string& programPath, const std::vector<std::string>& args, size_t memLimitBytes);
 };

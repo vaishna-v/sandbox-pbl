@@ -5,6 +5,7 @@
 
 struct SandboxProcess {
     pid_t pid;
+    pid_t ppid; // EXTENSION: Captured for the DB Process Tree
     std::string name;
     long memoryUsageBytes;
     int priority;
@@ -27,4 +28,5 @@ public:
     void Cleanup();
     
     std::vector<SandboxProcess> GetRunningProcesses() const;
+    bool SetProcessPriority(pid_t pid, const std::string& level);
 };

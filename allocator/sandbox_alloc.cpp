@@ -5,7 +5,8 @@
 #include <cstring>
 #include <atomic>
 #include <cstdio>
-#include "../../dbms/DatabaseAdapter.hpp"
+#include "../DatabaseAdapter.hpp"
+
 
 std::atomic<size_t> total_allocated{0};
 size_t mem_limit = 0;
@@ -51,20 +52,24 @@ void init_sandbox() {
     }
 }
 
-void log_action(const char* action, size_t requested, bool allowed) {
+// EXTENSION: Accepts void* ptr to track memory addresses for leak detection
+void log_action(const char* action, size_t requested, bool allowed, void* ptr = nullptr) {
+    char ptr_str[64] = "";
+    if (ptr) snprintf(ptr_str, sizeof(ptr_str), "%p", ptr);
+
     // 1. Log to flat text file
     int fd = open(log_file_name, O_WRONLY | O_CREAT | O_APPEND, 0666);
     if (fd >= 0) {
         char buffer[256];
-        int len = snprintf(buffer, sizeof(buffer), "[PID: %d] %s - Requested: %zu bytes | Status: %s | Total Payload: %zu/%zu\n", 
-                           getpid(), action, requested, allowed ? "GRANTED" : "DENIED", total_allocated.load(), mem_limit);
+        int len = snprintf(buffer, sizeof(buffer), "[PID: %d] %s - Req: %zu bytes | Status: %s | Total: %zu/%zu | Addr: %s\n", 
+                           getpid(), action, requested, allowed ? "GRANTED" : "DENIED", total_allocated.load(), mem_limit, ptr ? ptr_str : "N/A");
         write(fd, buffer, len);
         close(fd);
     }
     
     // 2. Stream to PostgreSQL memory_events schema
     if (db_adapter) {
-        db_adapter->LogMemoryEvent(getpid(), action, requested, allowed ? "GRANTED" : "DENIED", total_allocated.load());
+        db_adapter->LogMemoryEvent(getpid(), action, requested, allowed ? "GRANTED" : "DENIED", total_allocated.load(), ptr_str);
     }
 }
 
@@ -122,9 +127,10 @@ extern "C" void* malloc(size_t size) {
     header->requested_size = size;
     header->mapped_size = total_size;
     
-    log_action("ALLOC", size, true);
+    void* user_ptr = static_cast<char*>(ptr) + sizeof(BlockHeader);
+    log_action("ALLOC", size, true, user_ptr);
     in_alloc = false;
-    return static_cast<char*>(ptr) + sizeof(BlockHeader);
+    return user_ptr;
 }
 
 extern "C" void free(void* ptr) {
@@ -140,7 +146,7 @@ extern "C" void free(void* ptr) {
             in_alloc = true; // Lock out the database from triggering a recursive loop here
             total_allocated -= header->requested_size; 
             update_usage(); 
-            log_action("FREE", header->requested_size, true);
+            log_action("FREE", header->requested_size, true, ptr);
             in_alloc = false;
         }
         munmap(header, header->mapped_size);

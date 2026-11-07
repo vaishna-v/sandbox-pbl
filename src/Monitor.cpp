@@ -3,13 +3,13 @@
 #include <sys/wait.h>
 #include <sys/user.h>
 #include <fstream>
-#include <iostream>
 #include <sstream>
 #include <unistd.h>
 
-Monitor::Monitor(pid_t pid) : targetPid(pid) {
+Monitor::Monitor(pid_t pid, DatabaseAdapter* db) : targetPid(pid), dbAdapter(db) {
     ptrace(PTRACE_ATTACH, targetPid, nullptr, nullptr);
     waitpid(targetPid, nullptr, 0);
+    ptrace(PTRACE_SETOPTIONS, targetPid, 0, PTRACE_O_TRACESYSGOOD);
 }
 
 ProcessStats Monitor::GetCurrentStats() const {
@@ -50,26 +50,46 @@ void Monitor::TraceSyscallStep() {
 
 void Monitor::PrintSyscallSummary() const {
     for (const auto& [syscall, count] : syscallCounts) {
-        std::cout << "Syscall " << syscall << " called " << count << " times\n";
+        if (dbAdapter) {
+            dbAdapter->LogSyscall(targetPid, syscall, count);
+        }
     }
 }
 
 int Monitor::WaitForTermination() {
     int status;
+    long signal_to_deliver = 0; 
+
     while (true) {
-        ptrace(PTRACE_SYSCALL, targetPid, nullptr, nullptr);
+        // Resume the program and inject any pending signals
+        ptrace(PTRACE_SYSCALL, targetPid, nullptr, (void*)signal_to_deliver);
         waitpid(targetPid, &status, 0);
         
+        signal_to_deliver = 0; 
+
         if (WIFEXITED(status)) {
+            PrintSyscallSummary(); // Safely flush to DB on normal exit
             return WEXITSTATUS(status);
         }
         if (WIFSIGNALED(status)) {
+            PrintSyscallSummary(); // Safely flush to DB if killed (e.g. clicking 'X')
             return WTERMSIG(status);
         }
-        if (WIFSTOPPED(status) && WSTOPSIG(status) == (SIGTRAP | 0x80)) {
-            struct user_regs_struct regs;
-            ptrace(PTRACE_GETREGS, targetPid, nullptr, &regs);
-            syscallCounts[regs.orig_rax]++;
+        
+        if (WIFSTOPPED(status)) {
+            int stopsig = WSTOPSIG(status);
+            
+            if (stopsig == (SIGTRAP | 0x80)) {
+                // It's a system call! Safely tally it without blocking for DB I/O
+                struct user_regs_struct regs;
+                ptrace(PTRACE_GETREGS, targetPid, nullptr, &regs);
+                syscallCounts[regs.orig_rax]++; 
+            } else if (stopsig == SIGTRAP) {
+                // Ignore normal SIGTRAP
+            } else {
+                // Queue real OS signals to be delivered on the next loop
+                signal_to_deliver = stopsig;
+            }
         }
     }
 }

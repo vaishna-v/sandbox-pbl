@@ -1,8 +1,9 @@
 #include "../include/SandboxController.h"
 #include <iostream>
 
-bool SandboxController::ExecuteAndMonitor(const std::string& programPath, const std::vector<std::string>& args, size_t memLimitBytes, int cpuQuota, int priority) {
-    pid_t pid = sandbox.Launch(programPath, args, memLimitBytes, cpuQuota, priority);
+bool SandboxController::ExecuteAndMonitor(const std::string& programPath, const std::vector<std::string>& args, size_t memLimitBytes) {
+    // Fixed: Passing exactly 3 arguments to match Sandbox.cpp
+    pid_t pid = sandbox.Launch(programPath, args, memLimitBytes);
     if (pid <= 0) return false;
 
     monitor = std::make_unique<Monitor>(pid);

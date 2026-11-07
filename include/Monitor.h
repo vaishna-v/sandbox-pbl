@@ -1,10 +1,10 @@
 #pragma once
 #include <sys/types.h>
-#include <string>
-#include <unordered_map>
+#include <map>
+#include "../DatabaseAdapter.hpp"
 
 struct ProcessStats {
-    long memoryUsageBytes;
+    size_t memoryUsageBytes;
     double cpuUsagePercent;
     char state;
 };
@@ -12,11 +12,13 @@ struct ProcessStats {
 class Monitor {
 private:
     pid_t targetPid;
-    std::unordered_map<long, int> syscallCounts;
+    std::map<int, int> syscallCounts;
+    DatabaseAdapter* dbAdapter; // EXTENSION: Added database pointer
 
 public:
-    explicit Monitor(pid_t pid);
-
+    // EXTENSION: Added database adapter to constructor
+    Monitor(pid_t pid, DatabaseAdapter* db = nullptr);
+    
     ProcessStats GetCurrentStats() const;
     void TraceSyscallStep();
     void PrintSyscallSummary() const;
