@@ -23,3 +23,7 @@ add_executable(sandbox_exec src/Sandbox.cpp src/main.cpp src/Monitor.cpp)
 
 # Added pqxx and pq for the main orchestrator
 target_link_libraries(sandbox_exec ${CURSES_LIBRARIES} pqxx pq)
+
+
+add_executable(spawner programs/spawner.cpp)
+set_target_properties(spawner PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests")
