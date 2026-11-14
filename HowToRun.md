@@ -1,13 +1,13 @@
 ### Prerequisites
 
 - Linux environment
-- CMake and GNU Make.
-- C++ compiler supporting C++17.
-- xterm installed.
+- CMake and GNU Make
+- C++ compiler supporting C++17
+- `xterm` installed
 
 **Note:** The Banker's Algorithm module uses `xterm` to open separate windows for resource monitoring and user interaction.
 
-## 1. Run the Sandbox Module
+## 1. Build the Project
 
 Open a terminal in the project directory and execute:
 
@@ -15,20 +15,51 @@ Open a terminal in the project directory and execute:
 mkdir -p build
 cd build
 cmake ..
-make
-sudo ./sandbox_exec
+cmake --build .
 ```
 
-## 2. Run the Banker's Algorithm Module
+## 2. Run the Complete Project
 
-Open a separate terminal and execute:
+From the `build` directory, execute:
+
+```bash
+./os_project
+```
+
+The main menu provides the following options:
+
+1. Sandbox Manager
+2. Banker's Algorithm
+3. Memory Management
+0. Exit
+
+Select a module by entering its corresponding number. Once a module finishes execution, the main menu will reappear.
+
+## 3. Run Individual Modules
+
+The modules can also be executed independently.
+
+### Sandbox Module
 
 ```bash
 cd build
-cmake --build .
+sudo ./sandbox_exec
+```
+
+### Banker's Algorithm Module
+
+```bash
+cd build
 ./banker_manager
 ```
 
 The Banker's Algorithm interface will open automatically.
 
-**Note:** The Sandbox and Banker's Algorithm modules are independent. Run them separately.
+### Memory Management Module
+
+```bash
+cd build
+./memory_manager
+```
+
+**Note:** The Sandbox and Banker's Algorithm modules are independent and can be run separately.

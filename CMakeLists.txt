@@ -61,3 +61,12 @@ add_executable(user_interface
 add_executable(resource_monitor
     src/algorithms/bankers/resource_monitor.cpp
 )
+
+add_executable(memory_manager
+    src/algorithms/memory/main.cpp
+    src/algorithms/memory/MemoryManager.cpp
+)
+
+target_link_libraries(memory_manager PRIVATE ${CURSES_LIBRARIES})
+
+add_executable(os_project src/project_menu.cpp)
