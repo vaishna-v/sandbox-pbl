@@ -1,8 +1,0 @@
-Open terminal in this folder and do-
-
-mkdir build
-cd build
-cmake ..
-make
-sudo ./sandbox_exec
-
